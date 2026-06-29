@@ -13,6 +13,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 log() { echo "[$(date '+%F %T')] $*"; }
 
+# ---- persistence: send all caches/installs to /workspace ($HOME=/root is wiped) ----
+source "$ROOT/workspace_env.sh"
+
 # ---- environment -----------------------------------------------------------
 if ! command -v uv >/dev/null 2>&1; then
   log "installing uv"

@@ -14,8 +14,12 @@ cd controlling-controllability
 # add your key (.env is gitignored)
 printf 'OPENAI_API_KEY=sk-REPLACE_ME\n' > .env
 
-# install uv if not present, then create the env (core + vLLM generation extra)
-curl -LsSf https://astral.sh/uv/install.sh | sh && source "$HOME/.local/bin/env"
+# IMPORTANT: $HOME=/root is NOT persistent on this server; only /workspace survives.
+# Redirect uv + uv-python + HuggingFace caches into /workspace so weights/wheels persist.
+source workspace_env.sh
+
+# install uv (into /workspace) if not present, then create the env (core + vLLM)
+command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync --extra gen
 
 # export the key for this shell (the benchmark grader reads it from the env)
