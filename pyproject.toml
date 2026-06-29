@@ -34,4 +34,8 @@ url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
 [tool.uv.sources]
+# all three torch packages MUST share the same CUDA build, or torchaudio's
+# import-time CUDA-version check fails against a cu128 torch.
 torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+torchaudio = { index = "pytorch-cu128" }
