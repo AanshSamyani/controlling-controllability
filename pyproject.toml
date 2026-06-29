@@ -16,10 +16,22 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# generation / serving (vLLM bundles a compatible torch on CUDA Linux)
-gen = ["vllm>=0.8.5"]
+# generation / serving. Pin to a vLLM era whose torch has CUDA 12.8 (cu128) wheels
+# to match this server's NVIDIA driver (CUDA 12.8). Newer vLLM ships torch built
+# for CUDA 12.9+, which the driver rejects with "NVIDIA driver too old".
+gen = ["vllm>=0.9.0,<0.10.0", "torch>=2.7.0,<2.8.0"]
 # SFT training
 train = ["trl==0.13.0", "peft>=0.13.0", "accelerate>=0.34.0"]
 
 [tool.uv]
 package = false   # flat scripts run via `uv run python x.py`; nothing to build/install
+
+# Pull torch from the CUDA 12.8 wheel index so it matches the driver. `explicit`
+# means this index is used ONLY for packages mapped to it below (torch), not PyPI.
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
