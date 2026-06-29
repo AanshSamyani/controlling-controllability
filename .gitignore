@@ -1,0 +1,18 @@
+# secrets
+.env
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# generated data / models / logs
+data/
+out/
+logs/
+results/
+*.log
+
+# cloned external benchmark (not part of this repo)
+CoTControl/

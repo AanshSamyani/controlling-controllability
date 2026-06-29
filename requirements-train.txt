@@ -1,0 +1,16 @@
+# Training + data-gen deps (pinned to a combination known to expose the TRL
+# SFTConfig fields used in train_sft.py: max_seq_length, assistant_only_loss,
+# processing_class). If you bump TRL, check those names.
+transformers>=4.51.0         # Qwen3 support landed in 4.51
+trl==0.13.0
+peft>=0.13.0
+datasets>=2.19.0
+accelerate>=0.34.0
+bitsandbytes>=0.43.0          # only needed for --load_in_4bit (QLoRA)
+
+# data generation / eval
+openai>=1.40.0                # GPT-4.1-mini trace rewriting + judging
+fast-langdetect>=0.2.0        # optional: language-constraint checking
+
+# serving for the exact CoT-Control eval (see serve_qwen.sh)
+vllm>=0.6.3
