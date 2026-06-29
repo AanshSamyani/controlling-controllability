@@ -19,7 +19,14 @@ dependencies = [
 # generation / serving. Pin to a vLLM era whose torch has CUDA 12.8 (cu128) wheels
 # to match this server's NVIDIA driver (CUDA 12.8). Newer vLLM ships torch built
 # for CUDA 12.9+, which the driver rejects with "NVIDIA driver too old".
-gen = ["vllm>=0.9.0,<0.10.0", "torch>=2.7.0,<2.8.0"]
+gen = [
+    "vllm>=0.9.0,<0.10.0",
+    # torch family listed explicitly so the cu128 [tool.uv.sources] mapping
+    # below binds (uv sources only apply to DIRECT deps, not transitive ones).
+    "torch>=2.7.0,<2.8.0",
+    "torchvision>=0.22.0,<0.23.0",
+    "torchaudio>=2.7.0,<2.8.0",
+]
 # SFT training
 train = ["trl==0.13.0", "peft>=0.13.0", "accelerate>=0.34.0"]
 
