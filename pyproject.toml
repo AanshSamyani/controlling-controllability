@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Fine-tuning Qwen3 reasoning models to follow verifiable chain-of-thought constraints, and measuring CoT controllability / faithfulness / monitorability."
 requires-python = ">=3.10,<3.13"
 dependencies = [
-    "transformers>=4.51.0",   # Qwen3 support
+    "transformers>=4.51.0,<4.53.0",   # Qwen3 support; <4.53 avoids the native-aimv2 config clash with vLLM 0.9.x
     "datasets>=2.19.0",
     "openai>=1.40.0",         # gpt-4.1-mini judge + rewriter
     "pandas>=2.0.0",
