@@ -13,6 +13,7 @@ dependencies = [
     "aiohttp>=3.9.0",         # CoT-Control harness (async)
     "tqdm>=4.66.0",
     "python-dotenv>=1.0.0",
+    "hf_transfer>=0.1.6",     # the server image sets HF_HUB_ENABLE_HF_TRANSFER=1; provide the package
 ]
 
 [project.optional-dependencies]
