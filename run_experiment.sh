@@ -15,6 +15,7 @@ log() { echo "[$(date '+%F %T')] $*"; }
 
 # ---- persistence: send all caches/installs to /workspace ($HOME=/root is wiped) ----
 source "$ROOT/workspace_env.sh"
+export PYTHONUNBUFFERED=1   # live progress in nohup logs (Python stdout is block-buffered otherwise)
 
 # ---- environment -----------------------------------------------------------
 if ! command -v uv >/dev/null 2>&1; then

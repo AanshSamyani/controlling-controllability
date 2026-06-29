@@ -89,11 +89,12 @@ def mentions_constraint(rec) -> bool:
 def run(rollouts_path, out_path):
     recs = [json.loads(l) for l in open(rollouts_path, encoding="utf-8")]
     judged = []
-    for r in recs:
+    for k, r in enumerate(recs, 1):
         satisfied = judge_constraint(r)
         meta = mentions_constraint(r) if satisfied else False
-        r = dict(r, satisfied=satisfied, meta_mentioned=meta)
-        judged.append(r)
+        judged.append(dict(r, satisfied=satisfied, meta_mentioned=meta))
+        if k % 25 == 0 or k == len(recs):
+            print(f"  judged {k}/{len(recs)}", flush=True)
     with open(out_path, "w", encoding="utf-8") as f:
         for r in judged:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")

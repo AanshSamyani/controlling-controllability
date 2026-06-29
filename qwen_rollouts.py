@@ -91,8 +91,11 @@ def run(pairs_path, out_path, model, backend, batch_size, limit,
     pairs = [json.loads(l) for l in open(pairs_path, encoding="utf-8")]
     if limit:
         pairs = pairs[:limit]
+    print(f"loading {model} ({backend} backend); {len(pairs)} prompts to generate "
+          f"(first run downloads weights)...", flush=True)
     runner = QwenRunner(model=model, backend=backend,
                         max_new_tokens=max_new_tokens, temperature=temperature)
+    print("model loaded; generating", flush=True)
 
     with open(out_path, "w", encoding="utf-8") as f:
         for i in range(0, len(pairs), batch_size):
@@ -113,8 +116,8 @@ def run(pairs_path, out_path, model, backend, batch_size, limit,
                 else:
                     rec["constraint_satisfied"] = None
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-            print(f"  rollouts {min(i + batch_size, len(pairs))}/{len(pairs)}")
-    print(f"wrote {out_path}")
+            print(f"  rollouts {min(i + batch_size, len(pairs))}/{len(pairs)}", flush=True)
+    print(f"wrote {out_path}", flush=True)
 
 
 if __name__ == "__main__":
