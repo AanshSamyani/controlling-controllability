@@ -30,7 +30,7 @@ DATASETS = {
     "gsm8k":         ("openai/gsm8k",          "main",          "train"),
     "arc":           ("allenai/ai2_arc",       "ARC-Challenge", "train"),
     "commonsenseqa": ("tau/commonsense_qa",    None,            "train"),
-    "logiqa":        ("lucasmccabe/logiqa",    None,            "train"),
+    "openbookqa":    ("allenai/openbookqa",    "main",          "train"),
     "strategyqa":    ("ChilleD/StrategyQA",    None,            "train"),
 }
 
@@ -77,13 +77,13 @@ def _norm_csqa(ex):
     return _norm_mcq(ex.get("question", ""), texts, labels.index(key))
 
 
-def _norm_logiqa(ex):
-    q = (ex.get("context", "") + "\n" + ex.get("query", "")).strip()
-    opts = ex.get("options", [])
-    gold = ex.get("correct_option", ex.get("answer"))
-    if isinstance(gold, str) and gold in _LETTERS:
-        gold = _LETTERS.index(gold)
-    return _norm_mcq(q, opts, gold if isinstance(gold, int) else None)
+def _norm_openbookqa(ex):
+    ch = ex.get("choices", {}) or {}
+    texts, labels = ch.get("text", []), ch.get("label", [])
+    key = ex.get("answerKey")
+    if key not in labels:
+        return None
+    return _norm_mcq(ex.get("question_stem", ""), texts, labels.index(key))
 
 
 def _norm_strategyqa(ex):
@@ -97,7 +97,7 @@ def _norm_strategyqa(ex):
 
 _NORMALIZERS = {
     "gsm8k": _norm_gsm8k, "arc": _norm_arc, "commonsenseqa": _norm_csqa,
-    "logiqa": _norm_logiqa, "strategyqa": _norm_strategyqa,
+    "openbookqa": _norm_openbookqa, "strategyqa": _norm_strategyqa,
 }
 
 
@@ -109,24 +109,30 @@ def load_seed_questions(sources=None, max_per_source=400, seed=0):
     rng = random.Random(seed)
     records, seen = [], set()
     for src in sources:
-        path, config, split = DATASETS[src]
-        ds = load_dataset(path, config, split=split)
-        idxs = list(range(len(ds)))
-        rng.shuffle(idxs)
-        kept = 0
-        for i in idxs:
-            if kept >= max_per_source:
-                break
-            rec = _NORMALIZERS[src](ds[i])
-            if rec is None:
-                continue
-            qid = _qid(src, rec["question"])
-            if qid in seen:
-                continue
-            seen.add(qid)
-            rec.update(qid=qid, source=src)
-            records.append(rec)
-            kept += 1
+        try:
+            path, config, split = DATASETS[src]
+            ds = load_dataset(path, config, split=split)
+            idxs = list(range(len(ds)))
+            rng.shuffle(idxs)
+            kept = 0
+            for i in idxs:
+                if kept >= max_per_source:
+                    break
+                rec = _NORMALIZERS[src](ds[i])
+                if rec is None:
+                    continue
+                qid = _qid(src, rec["question"])
+                if qid in seen:
+                    continue
+                seen.add(qid)
+                rec.update(qid=qid, source=src)
+                records.append(rec)
+                kept += 1
+            print(f"[seed] {src}: kept {kept}")
+        except Exception as e:  # skip unavailable / script-based / renamed datasets
+            print(f"[seed] WARNING: skipping {src} ({type(e).__name__}: {e})")
+    if not records:
+        raise RuntimeError("no seed questions loaded from any source")
     rng.shuffle(records)
     return records
 
