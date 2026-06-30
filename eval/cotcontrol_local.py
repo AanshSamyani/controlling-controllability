@@ -44,7 +44,7 @@ def build_local_llm(OpenRouterLLM, base_url, model, workers):
             super().__init__(model=model, api_key=os.getenv("OPENROUTER_API_KEY", "EMPTY"))
             self.base_url = base_url  # override the hard-coded OpenRouter URL
 
-        def generate_batch(self, messages_list, max_tokens=8192, temperature=0.0, **kwargs):
+        def generate_batch(self, messages_list, max_tokens=25000, temperature=0.0, **kwargs):
             # The harness routes our LLM through its sequential "local" path; fan
             # each batch out as concurrent HTTP requests to vLLM (order preserved).
             n = max(1, min(workers, len(messages_list)))
@@ -104,7 +104,7 @@ def main():
     ap.add_argument("--log_dir", default="results", help="subfolder under logs/ for outputs")
     ap.add_argument("--datasets", nargs="*", default=None)
     ap.add_argument("--modes", nargs="*", default=None)
-    ap.add_argument("--max_tokens", type=int, default=8192)
+    ap.add_argument("--max_tokens", type=int, default=25000)
     ap.add_argument("--batch_size", type=int, default=64)   # local-path batch size
     ap.add_argument("--workers", type=int, default=64)      # concurrent requests per batch
     ap.add_argument("--max_concurrency", type=int, default=16)
