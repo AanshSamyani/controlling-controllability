@@ -34,19 +34,19 @@ trap cleanup EXIT INT TERM
 log "STEP 0: uv sync (core + gen/vLLM)"
 uv sync --extra gen
 
-# ---- 1. pairs --------------------------------------------------------------
+# ---- 1. pairs (skip if already built) --------------------------------------
 log "STEP 1: build train/val/test pairs"
-uv run python build_pairs.py --n_train 1000 --n_val 150 --n_test 250
+[ -f data/pairs.test.jsonl ] || uv run python build_pairs.py --n_train 1000 --n_val 150 --n_test 250
 
-# ---- 2. VAL baseline -------------------------------------------------------
+# ---- 2. VAL baseline (skip steps whose output exists) ----------------------
 log "STEP 2: VAL rollouts + judge"
-uv run python qwen_rollouts.py --pairs data/pairs.val.jsonl  --out data/rollouts.val.jsonl
-uv run python cot_judge.py     --rollouts data/rollouts.val.jsonl --out data/judged.val.jsonl
+[ -f data/rollouts.val.jsonl ] || uv run python qwen_rollouts.py --pairs data/pairs.val.jsonl  --out data/rollouts.val.jsonl
+[ -f data/judged.val.jsonl ]   || uv run python cot_judge.py     --rollouts data/rollouts.val.jsonl --out data/judged.val.jsonl
 
 # ---- 3. TEST baseline ------------------------------------------------------
 log "STEP 3: TEST rollouts + judge"
-uv run python qwen_rollouts.py --pairs data/pairs.test.jsonl --out data/rollouts.test.jsonl
-uv run python cot_judge.py     --rollouts data/rollouts.test.jsonl --out data/judged.test.jsonl
+[ -f data/rollouts.test.jsonl ] || uv run python qwen_rollouts.py --pairs data/pairs.test.jsonl --out data/rollouts.test.jsonl
+[ -f data/judged.test.jsonl ]   || uv run python cot_judge.py     --rollouts data/rollouts.test.jsonl --out data/judged.test.jsonl
 
 # ---- 4. exact CoT-Control benchmark ----------------------------------------
 log "STEP 4: CoT-Control benchmark setup"

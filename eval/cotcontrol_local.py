@@ -36,11 +36,24 @@ MODES = ["baseline", "word_suppression", "multiple_word_suppression", "repeat_se
          "meow_between_words", "ignore_question"]
 
 
-def build_local_llm(OpenRouterLLM, base_url, model):
+def build_local_llm(OpenRouterLLM, base_url, model, workers):
+    from concurrent.futures import ThreadPoolExecutor
+
     class LocalServerLLM(OpenRouterLLM):
         def __init__(self):
             super().__init__(model=model, api_key=os.getenv("OPENROUTER_API_KEY", "EMPTY"))
             self.base_url = base_url  # override the hard-coded OpenRouter URL
+
+        def generate_batch(self, messages_list, max_tokens=8192, temperature=0.0, **kwargs):
+            # The harness routes our LLM through its sequential "local" path; fan
+            # each batch out as concurrent HTTP requests to vLLM (order preserved).
+            n = max(1, min(workers, len(messages_list)))
+            with ThreadPoolExecutor(max_workers=n) as ex:
+                futs = [ex.submit(self.generate, m, max_tokens=max_tokens,
+                                  temperature=temperature, **kwargs)
+                        for m in messages_list]
+                return [f.result() for f in futs]
+
     return LocalServerLLM()
 
 
@@ -51,7 +64,7 @@ async def run(args):
     from llm import OpenRouterLLM            # noqa: E402
     from run_cceval import run_evaluation    # noqa: E402
 
-    llm = build_local_llm(OpenRouterLLM, args.base_url, args.model)
+    llm = build_local_llm(OpenRouterLLM, args.base_url, args.model, args.workers)
     datasets = args.datasets or QA_DATASETS
     modes = args.modes or MODES
 
@@ -65,7 +78,9 @@ async def run(args):
                 mode=mode,
                 max_tokens=args.max_tokens,
                 reasoning_tokens=0,            # keep the proprietary "reasoning" field off
+                batch_size=args.batch_size,    # local-path batch -> concurrent HTTP
                 max_concurrency=args.max_concurrency,
+                resume=True,                   # survive interruptions; a re-run continues
                 log_dir=args.log_dir,
                 llm=llm,
             )
@@ -89,7 +104,9 @@ def main():
     ap.add_argument("--log_dir", default="results", help="subfolder under logs/ for outputs")
     ap.add_argument("--datasets", nargs="*", default=None)
     ap.add_argument("--modes", nargs="*", default=None)
-    ap.add_argument("--max_tokens", type=int, default=25000)
+    ap.add_argument("--max_tokens", type=int, default=8192)
+    ap.add_argument("--batch_size", type=int, default=64)   # local-path batch size
+    ap.add_argument("--workers", type=int, default=64)      # concurrent requests per batch
     ap.add_argument("--max_concurrency", type=int, default=16)
     ap.add_argument("--grade", action="store_true")
     asyncio.run(run(ap.parse_args()))
