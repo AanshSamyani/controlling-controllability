@@ -82,12 +82,20 @@ def main():
         return
 
     def _to_text(ex):
-        return {"text": tok.apply_chat_template(ex["messages"], tokenize=False)}
+        msgs = ex["messages"]
+        text = tok.apply_chat_template(msgs, tokenize=False)
+        asst = next((m["content"] for m in msgs if m["role"] == "assistant"), "")
+        # Hybrid Qwen3 templates can strip <think> from the assistant turn. If so,
+        # rebuild ChatML manually so the reasoning target is actually trained.
+        if "<think>" in asst and "<think>" not in text:
+            usr = next((m["content"] for m in msgs if m["role"] == "user"), "")
+            text = (f"<|im_start|>user\n{usr}<|im_end|>\n"
+                    f"<|im_start|>assistant\n{asst}<|im_end|>\n")
+        return {"text": text}
     for split in ds:
         ds[split] = ds[split].map(_to_text, remove_columns=ds[split].column_names)
     if "<think>" not in ds["train"][0]["text"]:
-        print("WARNING: rendered training text has no '<think>' — the chat template "
-              "may be stripping reasoning. Inspect with --dry_run.", flush=True)
+        print("WARNING: training text has no '<think>' even after fallback — check the data.", flush=True)
 
     # ---- model (+ optional 4-bit) ----
     model_kwargs = dict(torch_dtype=torch.bfloat16, trust_remote_code=True)
