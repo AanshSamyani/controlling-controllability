@@ -65,21 +65,27 @@ def main():
     if tok.pad_token is None:
         tok.pad_token = tok.eos_token
 
-    # ---- data (conversational: TRL applies the chat template to "messages") ----
+    # ---- data: pre-render messages -> a `text` column via the chat template.
+    # More robust than relying on TRL's conversational auto-detection (which
+    # varies by version and expects a `text` field otherwise). ----
     files = {"train": args.train_file}
     if args.eval_file:
         files["eval"] = args.eval_file
     ds = load_dataset("json", data_files=files)
-    for split in ds:
-        keep = [c for c in ds[split].column_names if c == "messages"]
-        ds[split] = ds[split].select_columns(keep)
 
     if args.dry_run:
-        ex = ds["train"][0]["messages"]
-        rendered = tok.apply_chat_template(ex, tokenize=False)
+        rendered = tok.apply_chat_template(ds["train"][0]["messages"], tokenize=False)
         print("=== rendered chat example ===\n" + rendered)
         print("\n=== token count ===", len(tok(rendered)["input_ids"]))
         return
+
+    def _to_text(ex):
+        return {"text": tok.apply_chat_template(ex["messages"], tokenize=False)}
+    for split in ds:
+        ds[split] = ds[split].map(_to_text, remove_columns=ds[split].column_names)
+    if "<think>" not in ds["train"][0]["text"]:
+        print("WARNING: rendered training text has no '<think>' — the chat template "
+              "may be stripping reasoning. Inspect with --dry_run.", flush=True)
 
     # ---- model (+ optional 4-bit) ----
     model_kwargs = dict(torch_dtype=torch.bfloat16, trust_remote_code=True)
@@ -112,7 +118,9 @@ def main():
         eval_strategy="epoch" if args.eval_file else "no",
         bf16=True,
         gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},  # needed with PEFT
         max_seq_length=args.max_seq_length,
+        dataset_text_field="text",
         packing=False,
         seed=args.seed,
         report_to="none",
