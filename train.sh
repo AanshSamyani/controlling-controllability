@@ -14,7 +14,7 @@ uv run python cotctrl/train_sft.py \
   --train_file data/sft.train.jsonl \
   --output_dir "$OUT" \
   --lora --lora_r 32 --lora_alpha 64 \
-  --epochs 3 --lr 1e-4 --batch_size 8 --grad_accum 4 --max_seq_length 8192
+  --epochs 3 --lr 1e-4 --batch_size 1 --grad_accum 32 --max_seq_length 8192
 
 # 2. merge the adapter so vLLM can serve it for evaluation
 uv run python cotctrl/merge_lora.py --base "$MODEL" --adapter "$OUT" --out "${OUT%-lora}-merged"

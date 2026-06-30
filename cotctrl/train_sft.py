@@ -35,8 +35,10 @@ def parse_args():
     # training
     p.add_argument("--epochs", type=float, default=3.0)
     p.add_argument("--lr", type=float, default=1e-4)
-    p.add_argument("--batch_size", type=int, default=8)
-    p.add_argument("--grad_accum", type=int, default=4)
+    # CE loss upcasts a [batch*seq*vocab] logits tensor to fp32, so keep the
+    # per-device batch small for long sequences; keep effective batch via accum.
+    p.add_argument("--batch_size", type=int, default=1)
+    p.add_argument("--grad_accum", type=int, default=32)
     p.add_argument("--max_seq_length", type=int, default=8192)  # fit long <think> targets
     p.add_argument("--warmup_ratio", type=float, default=0.03)
     p.add_argument("--weight_decay", type=float, default=0.0)

@@ -15,6 +15,7 @@ log() { echo "[$(date '+%F %T')] $*"; }
 
 source "$ROOT/workspace_env.sh"
 export PYTHONUNBUFFERED=1
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True   # reduce fragmentation OOM
 if ! command -v uv >/dev/null 2>&1; then curl -LsSf https://astral.sh/uv/install.sh | sh; fi
 [ -f "$HOME/.local/bin/env" ] && source "$HOME/.local/bin/env" || true
 if [ -f .env ]; then set -a; source .env; set +a; fi
@@ -35,13 +36,13 @@ log "STEP 1: build SFT data (gpt-4.1-mini rewrites train rollouts to obey each c
 log "  SFT examples: $(wc -l < data/sft.train.jsonl)"
 
 log "STEP 2: LoRA SFT (r=32, alpha=64)"
-[ -d "$ADAPTER" ] || uv run python cotctrl/train_sft.py \
+[ -f "$ADAPTER/adapter_config.json" ] || uv run python cotctrl/train_sft.py \
     --model "$BASE" --train_file data/sft.train.jsonl --output_dir "$ADAPTER" \
     --lora --lora_r 32 --lora_alpha 64 --epochs 3 --lr 1e-4 \
-    --batch_size 8 --grad_accum 4 --max_seq_length 8192
+    --batch_size 1 --grad_accum 32 --max_seq_length 8192
 
 log "STEP 3: merge LoRA -> $MERGED (fast inference)"
-[ -d "$MERGED" ] || uv run python cotctrl/merge_lora.py --base "$BASE" --adapter "$ADAPTER" --out "$MERGED"
+[ -f "$MERGED/config.json" ] || uv run python cotctrl/merge_lora.py --base "$BASE" --adapter "$ADAPTER" --out "$MERGED"
 
 log "STEP 4: eval fine-tuned model on val + test (same pairs as baseline)"
 [ -f data/rollouts.val.ft.jsonl ]  || uv run python cotctrl/qwen_rollouts.py --model "$MERGED" --pairs data/pairs.val.jsonl  --out data/rollouts.val.ft.jsonl  --batch_size 256
