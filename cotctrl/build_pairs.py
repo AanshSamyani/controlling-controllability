@@ -90,13 +90,58 @@ def build(n_train, n_val, n_test, out_dir, max_per_source, seed):
               f"| sources={dict(src_counts)} -> {path}")
 
 
+# constraint TYPES never used in train/val/test — for held-out generalization.
+# Exclude the keyword-suppression mirrors (need per-question keywords; also they're
+# near-duplicates of the trained forbid_word).
+HELDOUT_EXCLUDE = {"bm_word_suppression", "bm_multi_suppression"}
+
+
+def _heldout_constraints():
+    cs = constraints_by_split("heldout_benchmark") + constraints_by_split("heldout_transfer")
+    return [c for c in cs if c.key not in HELDOUT_EXCLUDE]
+
+
+def build_heldout(n, out_dir, max_per_source, seed):
+    """Build data/pairs.heldout.jsonl over constraint TYPES never trained."""
+    rng = random.Random(seed + 1)
+    questions = load_seed_questions(max_per_source=max_per_source, seed=seed)
+    cons = _heldout_constraints()
+    pairs = []
+    for i in range(n):
+        rec = rng.choice(questions)
+        c = cons[i % len(cons)]   # round-robin for balance across held-out constraints
+        params = c.sample_params(None, rng)
+        instr = render_instruction(c, params, rng, suppress_meta=True)
+        pairs.append(dict(
+            id=f"{rec['qid']}::heldout::{rng.randrange(10**9)}",
+            split="heldout", source=rec["source"], qid=rec["qid"],
+            question=rec["question"], choices=rec["choices"],
+            answer=rec["answer"], answer_type=rec["answer_type"],
+            constraint_key=c.key, constraint_family=c.family, params=params,
+            instruction=instr, prompt=f"{format_question(rec)}\n\n{instr}",
+            suppress_meta=True))
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, "pairs.heldout.jsonl")
+    with open(path, "w", encoding="utf-8") as f:
+        for p in pairs:
+            f.write(json.dumps(p, ensure_ascii=False) + "\n")
+    from collections import Counter
+    print(f"[heldout] {len(pairs)} pairs | constraints="
+          f"{dict(Counter(p['constraint_key'] for p in pairs))} -> {path}")
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--n_train", type=int, default=1000)
     ap.add_argument("--n_val", type=int, default=150)
     ap.add_argument("--n_test", type=int, default=250)
+    ap.add_argument("--heldout", type=int, default=0,
+                    help="if >0, build ONLY data/pairs.heldout.jsonl with N held-out-type pairs")
     ap.add_argument("--out", default="data")
     ap.add_argument("--max_per_source", type=int, default=400)
     ap.add_argument("--seed", type=int, default=0)
     a = ap.parse_args()
-    build(a.n_train, a.n_val, a.n_test, a.out, a.max_per_source, a.seed)
+    if a.heldout:
+        build_heldout(a.heldout, a.out, a.max_per_source, a.seed)
+    else:
+        build(a.n_train, a.n_val, a.n_test, a.out, a.max_per_source, a.seed)
