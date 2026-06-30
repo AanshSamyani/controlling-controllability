@@ -2,7 +2,7 @@
 
 Run the **real** CoT-Control benchmark (its questions + its grader) on your
 base and fine-tuned Qwen models — the headline metric. The offline
-`heldout_benchmark` proxy in `cot_judge.py` stays for cheap per-checkpoint
+`heldout_benchmark` proxy in `cotctrl/cot_judge.py` stays for cheap per-checkpoint
 iteration; `check_grader_agreement.py` proves the two agree.
 
 ## Why a thin adapter (not env vars)
@@ -20,14 +20,14 @@ git clone https://github.com/YuehHanChen/CoTControl
 pip install -r CoTControl/CoT-Control-QA/requirements.txt   # or: cd CoTControl && uv sync
 
 # 2. serve a model (separate terminal). Base first to get the pre-finetune baseline:
-./eval/serve_qwen.sh Qwen/Qwen3-4B-Thinking-2507 8000
-# (fine-tuned: merge LoRA via merge_lora.py, then ./eval/serve_qwen.sh out/...-merged 8000)
+./cotctrl/eval/serve_qwen.sh Qwen/Qwen3-4B-Thinking-2507 8000
+# (fine-tuned: merge LoRA via merge_lora.py, then ./cotctrl/eval/serve_qwen.sh out/...-merged 8000)
 
 # 3. grading uses gpt-5-mini (ignore_question + meta-discussion judge)
 export OPENAI_API_KEY=sk-...
 
 # 4. run all 10 modes x 3 QA datasets, and grade. Use a distinct --log_dir per model.
-python eval/cotcontrol_local.py \
+python cotctrl/eval/cotcontrol_local.py \
   --cotcontrol_dir CoTControl/CoT-Control-QA \
   --base_url http://localhost:8000/v1 --model local \
   --log_dir base --grade
@@ -46,10 +46,10 @@ print(df.groupby("mode")[["compliance", "meta_discussion"]].mean())
 
 ## Confirm the proxy tracks the real grader
 ```bash
-python eval/check_grader_agreement.py \
+python cotctrl/eval/check_grader_agreement.py \
   --graded "CoTControl/CoT-Control-QA/logs/base/graded_results/*_graded.csv"
 ```
-Expect ~100% per deterministic mode; large gaps mean a verifier in `constraints.py`
+Expect ~100% per deterministic mode; large gaps mean a verifier in `cotctrl/constraints.py`
 drifted from the benchmark's `grading.py` and should be reconciled.
 
 ## Caveats (from reading the harness source)

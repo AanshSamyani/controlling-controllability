@@ -37,7 +37,7 @@ def parse_args():
     p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--batch_size", type=int, default=8)
     p.add_argument("--grad_accum", type=int, default=4)
-    p.add_argument("--max_seq_length", type=int, default=4096)
+    p.add_argument("--max_seq_length", type=int, default=8192)  # fit long <think> targets
     p.add_argument("--warmup_ratio", type=float, default=0.03)
     p.add_argument("--weight_decay", type=float, default=0.0)
     p.add_argument("--logging_steps", type=int, default=10)

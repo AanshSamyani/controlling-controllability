@@ -26,15 +26,15 @@ uv sync --extra gen
 set -a && source .env && set +a
 
 # 1. build train/val/test pairs -------------------------------------------
-uv run python build_pairs.py --n_train 1000 --n_val 150 --n_test 250
+uv run python cotctrl/build_pairs.py --n_train 1000 --n_val 150 --n_test 250
 
 # 2. baseline rollouts + judge on VAL --------------------------------------
-uv run python qwen_rollouts.py --pairs data/pairs.val.jsonl  --out data/rollouts.val.jsonl
-uv run python cot_judge.py     --rollouts data/rollouts.val.jsonl --out data/judged.val.jsonl
+uv run python cotctrl/qwen_rollouts.py --pairs data/pairs.val.jsonl  --out data/rollouts.val.jsonl
+uv run python cotctrl/cot_judge.py     --rollouts data/rollouts.val.jsonl --out data/judged.val.jsonl
 
 # 3. baseline rollouts + judge on TEST -------------------------------------
-uv run python qwen_rollouts.py --pairs data/pairs.test.jsonl --out data/rollouts.test.jsonl
-uv run python cot_judge.py     --rollouts data/rollouts.test.jsonl --out data/judged.test.jsonl
+uv run python cotctrl/qwen_rollouts.py --pairs data/pairs.test.jsonl --out data/rollouts.test.jsonl
+uv run python cotctrl/cot_judge.py     --rollouts data/rollouts.test.jsonl --out data/judged.test.jsonl
 
 # 4. the REAL CoT-Control benchmark (gpt-4.1-mini judge) -------------------
 git clone https://github.com/YuehHanChen/CoTControl.git
@@ -50,13 +50,13 @@ nohup uv run vllm serve Qwen/Qwen3-4B-Thinking-2507 \
 until curl -sf http://localhost:8000/health >/dev/null; do echo "waiting for vllm..."; sleep 5; done
 
 # run all 10 modes x 3 QA datasets and grade with gpt-4.1-mini
-uv run python eval/cotcontrol_local.py \
+uv run python cotctrl/eval/cotcontrol_local.py \
   --cotcontrol_dir CoTControl/CoT-Control-QA \
   --base_url http://localhost:8000/v1 --model local \
   --log_dir base --grade
 
 # confirm our offline proxy verifiers match the real grader on identical traces
-uv run python eval/check_grader_agreement.py \
+uv run python cotctrl/eval/check_grader_agreement.py \
   --graded "CoTControl/CoT-Control-QA/logs/base/graded_results/*_graded.csv"
 
 # stop the server
@@ -71,6 +71,6 @@ print(df.groupby("mode")[["compliance", "meta_discussion"]].mean())
 PY
 ```
 
-`cot_judge.py` already prints val/test controllability, no-meta, and accuracy per
+`cotctrl/cot_judge.py` already prints val/test controllability, no-meta, and accuracy per
 family and per constraint. Save these baseline numbers — they are the pre-finetune
 reference for the SFT experiment.

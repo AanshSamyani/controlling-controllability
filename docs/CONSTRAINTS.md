@@ -1,4 +1,4 @@
-# CoT Constraint Library (`constraints.py`)
+# CoT Constraint Library (`cotctrl/constraints.py`)
 
 A library of **verifiable constraints on the chain-of-thought**, used to build an
 SFT dataset that generalizes to the **CoT-Control benchmark**
@@ -71,7 +71,7 @@ ok     = c.verify(reasoning_text, params)                    # 100%-strict bool
 good   = c.make_compliant(reasoning_text, params)            # or None -> LLM rewrite
 ```
 
-Run `python constraints.py` for the self-test.
+Run `python cotctrl/constraints.py` for the self-test.
 
 ## Next step: the 1k SFT dataset generator
 

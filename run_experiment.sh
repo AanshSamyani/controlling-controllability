@@ -6,7 +6,8 @@
 #   nohup bash run_experiment.sh > run.log 2>&1 &
 #   tail -f run.log
 #
-# Idempotent: re-running re-uses the cloned benchmark and overwrites outputs.
+# Idempotent: re-running re-uses the cloned benchmark, skips finished steps, and
+# resumes the benchmark. Set BENCH_DATASETS to control which datasets to evaluate.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -41,17 +42,17 @@ uv sync --extra gen
 
 # ---- 1. pairs (skip if already built) --------------------------------------
 log "STEP 1: build train/val/test pairs"
-[ -f data/pairs.test.jsonl ] || uv run python build_pairs.py --n_train 1000 --n_val 150 --n_test 250
+[ -f data/pairs.test.jsonl ] || uv run python cotctrl/build_pairs.py --n_train 1000 --n_val 150 --n_test 250
 
 # ---- 2. VAL baseline (skip steps whose output exists) ----------------------
 log "STEP 2: VAL rollouts + judge"
-[ -f data/rollouts.val.jsonl ] || uv run python qwen_rollouts.py --pairs data/pairs.val.jsonl  --out data/rollouts.val.jsonl
-[ -f data/judged.val.jsonl ]   || uv run python cot_judge.py     --rollouts data/rollouts.val.jsonl --out data/judged.val.jsonl
+[ -f data/rollouts.val.jsonl ] || uv run python cotctrl/qwen_rollouts.py --pairs data/pairs.val.jsonl  --out data/rollouts.val.jsonl
+[ -f data/judged.val.jsonl ]   || uv run python cotctrl/cot_judge.py     --rollouts data/rollouts.val.jsonl --out data/judged.val.jsonl
 
 # ---- 3. TEST baseline ------------------------------------------------------
 log "STEP 3: TEST rollouts + judge"
-[ -f data/rollouts.test.jsonl ] || uv run python qwen_rollouts.py --pairs data/pairs.test.jsonl --out data/rollouts.test.jsonl
-[ -f data/judged.test.jsonl ]   || uv run python cot_judge.py     --rollouts data/rollouts.test.jsonl --out data/judged.test.jsonl
+[ -f data/rollouts.test.jsonl ] || uv run python cotctrl/qwen_rollouts.py --pairs data/pairs.test.jsonl --out data/rollouts.test.jsonl
+[ -f data/judged.test.jsonl ]   || uv run python cotctrl/cot_judge.py     --rollouts data/rollouts.test.jsonl --out data/judged.test.jsonl
 
 # ---- 4. exact CoT-Control benchmark ----------------------------------------
 log "STEP 4: CoT-Control benchmark setup"
@@ -78,13 +79,13 @@ done
 log "  vLLM ready"
 
 log "STEP 4b: run 10 modes on [$BENCH_DATASETS] + grade (gpt-4.1-mini)"
-uv run python eval/cotcontrol_local.py \
+uv run python cotctrl/eval/cotcontrol_local.py \
   --cotcontrol_dir CoTControl/CoT-Control-QA \
   --base_url http://localhost:8000/v1 --model local --log_dir base --grade \
   --datasets $BENCH_DATASETS
 
 log "STEP 4c: proxy<->exact grader agreement"
-uv run python eval/check_grader_agreement.py \
+uv run python cotctrl/eval/check_grader_agreement.py \
   --graded "CoTControl/CoT-Control-QA/logs/base/graded_results/*_graded.csv" || true
 
 log "STEP 4d: stop vLLM"
@@ -103,6 +104,6 @@ else:
 PY
 
 log "DONE."
-log "  val:       data/judged.val.jsonl   (cot_judge summary printed above in STEP 2)"
-log "  test:      data/judged.test.jsonl  (STEP 3)"
+log "  val:       data/judged.val.jsonl   (uv run python cotctrl/analyze.py data/judged.val.jsonl)"
+log "  test:      data/judged.test.jsonl"
 log "  benchmark: CoTControl/CoT-Control-QA/logs/base/graded_results/"
