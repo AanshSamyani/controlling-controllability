@@ -43,9 +43,6 @@ def parse_args():
     p.add_argument("--logging_steps", type=int, default=10)
     p.add_argument("--save_steps", type=int, default=200)
     p.add_argument("--seed", type=int, default=0)
-    # loss masking: train only on the assistant turn (needs a chat template with
-    # generation tags; if your TRL/template errors, drop this flag)
-    p.add_argument("--assistant_only_loss", action="store_true")
     # LoRA / quantization
     p.add_argument("--lora", action="store_true")
     p.add_argument("--lora_r", type=int, default=32)
@@ -117,7 +114,6 @@ def main():
         gradient_checkpointing=True,
         max_seq_length=args.max_seq_length,
         packing=False,
-        assistant_only_loss=args.assistant_only_loss,
         seed=args.seed,
         report_to="none",
     )
