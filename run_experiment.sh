@@ -30,6 +30,11 @@ if [ -f .env ]; then set -a; source .env; set +a; fi
 cleanup() { pkill -f "vllm serve" 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
 
+# Which CoT-Control QA datasets to benchmark (space-separated). Default: the
+# smallest (mmlu_pro_mini, 300q) for fast iteration. Override via env, e.g.:
+#   BENCH_DATASETS="gpqa_w_keyword.csv hle_w_keyword.csv mmlu_pro_mini_w_keyword.csv"
+BENCH_DATASETS="${BENCH_DATASETS:-mmlu_pro_mini_w_keyword.csv}"
+
 # ---- 0. deps ---------------------------------------------------------------
 log "STEP 0: uv sync (core + gen/vLLM)"
 uv sync --extra gen
@@ -72,10 +77,11 @@ done
 [ "$READY" = 1 ] || { log "  vLLM not ready (timeout) — see vllm.log"; exit 1; }
 log "  vLLM ready"
 
-log "STEP 4b: run 10 modes x 3 QA datasets + grade (gpt-4.1-mini)"
+log "STEP 4b: run 10 modes on [$BENCH_DATASETS] + grade (gpt-4.1-mini)"
 uv run python eval/cotcontrol_local.py \
   --cotcontrol_dir CoTControl/CoT-Control-QA \
-  --base_url http://localhost:8000/v1 --model local --log_dir base --grade
+  --base_url http://localhost:8000/v1 --model local --log_dir base --grade \
+  --datasets $BENCH_DATASETS
 
 log "STEP 4c: proxy<->exact grader agreement"
 uv run python eval/check_grader_agreement.py \
